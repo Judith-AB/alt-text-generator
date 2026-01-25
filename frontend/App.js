@@ -7,10 +7,12 @@ import {
     ScrollView,
     ActivityIndicator,
     StyleSheet,
+    TouchableOpacity,
 } from 'react-native';
 
 import * as ImagePicker from 'expo-image-picker';
 import * as Speech from 'expo-speech';
+import * as Haptics from 'expo-haptics'; // Added for tactile feedback
 import axios from 'axios';
 import { API_BASE_URL } from './config';
 
@@ -19,6 +21,8 @@ export default function App() {
     const [altText, setAltText] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    // State to track selected complexity mode
+    const [mode, setMode] = useState('simple'); 
 
     const takePhoto = async () => {
         setError('');
@@ -44,6 +48,9 @@ export default function App() {
         setLoading(true);
         setAltText('');
         setError('');
+        
+        // Provide tactile feedback that processing has started
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
         const formData = new FormData();
         formData.append('image', {
@@ -51,6 +58,8 @@ export default function App() {
             name: 'photo.jpg',
             type: 'image/jpeg',
         });
+        // Send the selected mode to the backend
+        formData.append('mode', mode); 
 
         try {
             const res = await axios.post(
@@ -60,9 +69,13 @@ export default function App() {
             );
 
             setAltText(res.data.alt_text);
+            
+            // WCAG Enhancement: Automatically speak the result for accessibility
             Speech.speak(res.data.alt_text);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch (e) {
             setError('Unable to generate description. Please try again.');
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         } finally {
             setLoading(false);
         }
@@ -70,40 +83,78 @@ export default function App() {
 
     return (
         <ScrollView contentContainerStyle={styles.container}>
-            <Text style={styles.title}>Alt Text Generator</Text>
+            <Text style={styles.title} accessibilityRole="header">Alt Text Generator</Text>
 
             <Text style={styles.subtitle}>
-                Generate spoken descriptions for images to support accessibility.
-            </Text>
-
-            <Text style={styles.instructions}>
-                Take a photo or choose an image. The app will describe it aloud.
+                Generate spoken descriptions to support accessibility.
             </Text>
 
             <View style={styles.buttonGroup}>
-                <Button title="Take Photo" onPress={takePhoto} />
+                <Button 
+                    title="Take Photo" 
+                    onPress={takePhoto} 
+                    accessibilityLabel="Open camera to take a photo"
+                />
             </View>
 
             <View style={styles.buttonGroup}>
-                <Button title="Choose from Gallery" onPress={pickFromGallery} />
+                <Button 
+                    title="Choose from Gallery" 
+                    onPress={pickFromGallery} 
+                    accessibilityLabel="Open gallery to choose an image"
+                />
             </View>
 
-            {image && <Image source={{ uri: image }} style={styles.image} />}
+            {image && (
+                <View style={styles.modeContainer}>
+                    <Text style={styles.modeTitle}>Select Description Complexity:</Text>
+                    <View style={styles.modeSelector}>
+                        {['simple', 'detailed', 'functional'].map((m) => (
+                            <TouchableOpacity
+                                key={m}
+                                style={[styles.modeButton, mode === m && styles.modeButtonSelected]}
+                                onPress={() => {
+                                    setMode(m);
+                                    Haptics.selectionAsync();
+                                }}
+                                accessibilityRole="radio"
+                                accessibilityState={{ selected: mode === m }}
+                            >
+                                <Text style={[styles.modeText, mode === m && styles.modeTextSelected]}>
+                                    {m.charAt(0).toUpperCase() + m.slice(1)}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </View>
+            )}
+
+            {image && <Image source={{ uri: image }} style={styles.image} accessibilityLabel="Selected image for processing" />}
 
             {image && !loading && (
                 <View style={styles.buttonGroup}>
-                    <Button title="Generate Description" onPress={generateAltText} />
+                    <Button 
+                        title={`Generate ${mode} Description`} 
+                        onPress={generateAltText} 
+                        color="#2196F3"
+                    />
                 </View>
             )}
 
             {loading && (
                 <View style={styles.loading}>
-                    <ActivityIndicator size="large" />
-                    <Text>Generating description...</Text>
+                    <ActivityIndicator size="large" color="#2196F3" />
+                    <Text>Analyzing image for {mode} details...</Text>
                 </View>
             )}
 
-            {altText !== '' && <Text style={styles.result}>{altText}</Text>}
+            {altText !== '' && (
+                <View style={styles.resultContainer}>
+                    <Text style={styles.resultHeader}>Generated Alt-Text:</Text>
+                    <Text style={styles.result}>{altText}</Text>
+                    <Button title="Speak Again" onPress={() => Speech.speak(altText)} />
+                </View>
+            )}
 
             {error !== '' && <Text style={styles.error}>{error}</Text>}
         </ScrollView>
@@ -111,18 +162,27 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-    container: { padding: 20 },
-    title: { fontSize: 26, fontWeight: 'bold', marginBottom: 10 },
-    subtitle: { fontSize: 16, marginBottom: 10 },
-    instructions: { fontSize: 14, marginBottom: 20, color: '#555' },
-    buttonGroup: { marginBottom: 10 },
-    image: {
-        width: 300,
-        height: 300,
-        marginVertical: 20,
-        alignSelf: 'center',
+    container: { padding: 20, backgroundColor: '#fff' },
+    title: { fontSize: 28, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
+    subtitle: { fontSize: 16, marginBottom: 20, textAlign: 'center', color: '#666' },
+    buttonGroup: { marginBottom: 15 },
+    modeContainer: { marginVertical: 15, padding: 10, backgroundColor: '#f9f9f9', borderRadius: 8 },
+    modeTitle: { fontSize: 16, fontWeight: '600', marginBottom: 10 },
+    modeSelector: { flexDirection: 'row', justifyContent: 'space-between' },
+    modeButton: { 
+        paddingVertical: 8, 
+        paddingHorizontal: 12, 
+        borderRadius: 20, 
+        borderWidth: 1, 
+        borderColor: '#ddd' 
     },
+    modeButtonSelected: { backgroundColor: '#2196F3', borderColor: '#2196F3' },
+    modeText: { fontSize: 14, color: '#333' },
+    modeTextSelected: { color: '#fff', fontWeight: 'bold' },
+    image: { width: 300, height: 300, marginVertical: 20, alignSelf: 'center', borderRadius: 10 },
     loading: { marginTop: 20, alignItems: 'center' },
-    result: { fontSize: 18, marginTop: 20, fontWeight: '500' },
-    error: { color: 'red', marginTop: 20 },
+    resultContainer: { marginTop: 20, padding: 15, backgroundColor: '#e3f2fd', borderRadius: 8 },
+    resultHeader: { fontWeight: 'bold', color: '#1976D2', marginBottom: 5 },
+    result: { fontSize: 18, color: '#333', marginBottom: 10 },
+    error: { color: 'red', marginTop: 20, textAlign: 'center' },
 });
