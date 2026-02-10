@@ -8,11 +8,13 @@ import {
     ActivityIndicator,
     StyleSheet,
     TouchableOpacity,
+    Alert, // Added for feedback
 } from 'react-native';
 
 import * as ImagePicker from 'expo-image-picker';
 import * as Speech from 'expo-speech';
-import * as Haptics from 'expo-haptics'; // Added for tactile feedback
+import * as Haptics from 'expo-haptics';
+import * as Clipboard from 'expo-clipboard'; // Added for Copy functionality
 import axios from 'axios';
 import { API_BASE_URL } from './config';
 
@@ -21,8 +23,7 @@ export default function App() {
     const [altText, setAltText] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    // State to track selected complexity mode
-    const [mode, setMode] = useState('simple'); 
+    const [mode, setMode] = useState('simple');
 
     const takePhoto = async () => {
         setError('');
@@ -42,6 +43,13 @@ export default function App() {
         }
     };
 
+    // --- New Copy Function ---
+    const copyToClipboard = async () => {
+        await Clipboard.setStringAsync(altText);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert('Copied!', 'Alt-text copied to clipboard.');
+    };
+
     const generateAltText = async () => {
         if (!image) return;
 
@@ -49,7 +57,6 @@ export default function App() {
         setAltText('');
         setError('');
         
-        // Provide tactile feedback that processing has started
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
         const formData = new FormData();
@@ -58,7 +65,6 @@ export default function App() {
             name: 'photo.jpg',
             type: 'image/jpeg',
         });
-        // Send the selected mode to the backend
         formData.append('mode', mode); 
 
         try {
@@ -69,8 +75,6 @@ export default function App() {
             );
 
             setAltText(res.data.alt_text);
-            
-            // WCAG Enhancement: Automatically speak the result for accessibility
             Speech.speak(res.data.alt_text);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch (e) {
@@ -152,7 +156,15 @@ export default function App() {
                 <View style={styles.resultContainer}>
                     <Text style={styles.resultHeader}>Generated Alt-Text:</Text>
                     <Text style={styles.result}>{altText}</Text>
-                    <Button title="Speak Again" onPress={() => Speech.speak(altText)} />
+                    
+                    <View style={styles.actionRow}>
+                        <View style={styles.flexButton}>
+                            <Button title="Speak Again" onPress={() => Speech.speak(altText)} />
+                        </View>
+                        <View style={styles.flexButton}>
+                            <Button title="Copy Text" color="#4CAF50" onPress={copyToClipboard} />
+                        </View>
+                    </View>
                 </View>
             )}
 
@@ -183,6 +195,9 @@ const styles = StyleSheet.create({
     loading: { marginTop: 20, alignItems: 'center' },
     resultContainer: { marginTop: 20, padding: 15, backgroundColor: '#e3f2fd', borderRadius: 8 },
     resultHeader: { fontWeight: 'bold', color: '#1976D2', marginBottom: 5 },
-    result: { fontSize: 18, color: '#333', marginBottom: 10 },
+    result: { fontSize: 18, color: '#333', marginBottom: 15 },
+    // New styles for the button row
+    actionRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
+    flexButton: { flex: 1 },
     error: { color: 'red', marginTop: 20, textAlign: 'center' },
 });
