@@ -1,0 +1,5 @@
+,BLEU-4,CIDEr,Avg Length
+Baseline-1 (BLIP),0.22,0.8821,12.5
+Baseline-2 (Florence Raw),0.2928,0.9817,11.1
+Proposed-Simple,0.2921,0.9952,11.0
+Proposed-Detailed,0.2915,0.9775,11.0
