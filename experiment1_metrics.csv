@@ -1,5 +1,5 @@
-,BLEU-4,CIDEr,Avg Length
-Baseline-1 (BLIP),0.22,0.8821,12.5
-Baseline-2 (Florence Raw),0.2928,0.9817,11.1
-Proposed-Simple,0.1011,0.3331,6.0
-Proposed-Detailed,0.0792,0.2902,16.7
+,BLEU-1,BLEU-4,CIDEr,METEOR,WCAG Score,Avg Length
+Baseline-1 (BLIP),0.6223,0.22,0.8821,0.5059,44.8,12.5
+Baseline-2 (Florence Raw),0.6908,0.2928,0.9817,0.5696,80.2,11.1
+Proposed-Simple,0.3595,0.0484,0.2703,0.3266,100.0,8.4
+Proposed-Detailed,0.3706,0.0626,0.2987,0.3791,100.0,11.3
